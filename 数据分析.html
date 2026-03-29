@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据分析 - Error Analysis</title>
+    <style>
+        /* 统一基础样式 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: url(./img/bg.jpg) no-repeat center/cover;
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            padding-top: 80px;
+        }
+
+        /* 抽屉导航 (Drawer Navigation) */
+        #drawer-toggle {
+            position: fixed;
+            left: 30px;
+            top: 30px;
+            z-index: 1000;
+            width: 50px;
+            height: 50px;
+            border: none;
+            background: rgba(156, 39, 176, 0.9);
+            border-radius: 15px;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        #drawer-menu {
+            position: fixed;
+            left: -300px;
+            top: 0;
+            height: 100vh;
+            width: 280px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            padding: 30px 20px;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .drawer-open #drawer-menu {
+            left: 0;
+        }
+
+        .menu-item {
+            padding: 18px;
+            margin: 12px 0;
+            background: rgba(156, 39, 176, 0.1);
+            border-radius: 12px;
+            color: #9C27B0;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .menu-item:hover {
+            background: rgba(156, 39, 176, 0.2);
+            transform: translateX(10px);
+        }
+
+        /* 主内容容器 (Main Container) */
+        .main-container {
+            width: 70%;
+            margin: 40px auto;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(156, 39, 176, 0.1);
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            color: #9C27B0;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .analysis-item {
+            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: rgba(245, 245, 245, 0.8);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .analysis-item h3 {
+            font-size: 1.4rem;
+            color: #9C27B0;
+            margin-bottom: 10px;
+        }
+
+        .analysis-item p {
+            font-size: 1.1rem;
+            color: #666;
+        }
+
+        .weak-points {
+            margin-top: 20px;
+        }
+
+        .learning-suggestions {
+            margin-top: 20px;
+        }
+
+        #forgetting-curve-chart {
+            margin-top: 20px;
+        }
+
+        /* AI交互区域样式 */
+        .ai-chat-container {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(156, 39, 176, 0.05);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .ai-chat-container:hover {
+            box-shadow: inset 0 0 10px rgba(156, 39, 176, 0.1);
+        }
+
+        /* 滚动条样式 */
+        .ai-chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .ai-chat-container::-webkit-scrollbar-track {
+            background: rgba(156, 39, 176, 0.1);
+            border-radius: 10px;
+        }
+
+        .ai-chat-container::-webkit-scrollbar-thumb {
+            background: rgba(156, 39, 176, 0.5);
+            border-radius: 10px;
+        }
+
+        .ai-chat-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 39, 176, 0.7);
+        }
+
+        .ai-message {
+            background: rgba(156, 39, 176, 0.1);
+            padding: 12px 16px;
+            border-radius: 18px 18px 18px 0;
+            margin-bottom: 10px;
+            max-width: 80%;
+            align-self: flex-start;
+            animation: messageIn 0.3s ease-out forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        .user-message {
+            background: rgba(156, 39, 176, 0.2);
+            padding: 12px 16px;
+            border-radius: 18px 18px 0 18px;
+            margin-bottom: 10px;
+            max-width: 80%;
+            align-self: flex-end;
+            margin-left: auto;
+            animation: messageIn 0.3s ease-out forwards;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        @keyframes messageIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .ai-input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .ai-input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid rgba(156, 39, 176, 0.3);
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .ai-input:focus {
+            border-color: #9C27B0;
+            box-shadow: 0 0 0 3px rgba(156, 39, 176, 0.1);
+        }
+
+        .ai-submit-btn {
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .ai-submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(156, 39, 176, 0.4);
+        }
+
+        .ai-submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <!-- 抽屉导航 (Drawer Navigation) -->
+    <button id="drawer-toggle">☰</button>
+    <div id="drawer-menu">
+        <div class="menu-item" onclick="location.href='cet4.html'">📘 CET-4 四级</div>
+        <div class="menu-item" onclick="location.href='cet6.html'">📗 CET-6 六级</div>
+        <div class="menu-item" onclick="location.href='考研单词.html'">🎓 考研词汇</div>
+        <div class="menu-item" onclick="location.href='错题集.html'">📚 错题集</div>
+        <div class="menu-item" onclick="history.back()">🔙 返回上级</div>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="main-container">
+        <h2 class="section-title">错题集数据分析</h2>
+        <div class="analysis-item">
+            <h3>错题总数</h3>
+            <p id="total-errors"></p>
+        </div>
+        <div class="analysis-item">
+            <h3>各分类错题数量</h3>
+            <p id="category-errors"></p>
+        </div>
+        <div class="analysis-item">
+            <h3>最近错题时间</h3>
+            <p id="latest-error-time"></p>
+        </div>
+        <div class="analysis-item weak-points">
+            <h3>用户薄弱点分析</h3>
+            <p id="weak-points"></p>
+        </div>
+        <div class="analysis-item learning-suggestions">
+            <h3>学习建议</h3>
+            <p id="learning-suggestions"></p>
+        </div>
+        <div class="analysis-item forgetting-curve-suggestions">
+            <h3>学习建议</h3>
+            <p id="forgetting-curve-advice"></p>
+        </div>
+        
+        <!-- AI分析区域 -->
+        <div class="analysis-item ai-analysis-section">
+            <h3>🤖 AI 智能分析</h3>
+            <div class="ai-chat-container" id="ai-chat-container">
+                <div class="ai-message">你好！我是你的AI学习助手，我可以帮你分析学习数据并生成个性化的遗忘曲线学习计划。</div>
+            </div>
+            <div class="ai-input-container">
+                <input type="text" class="ai-input" id="ai-input" placeholder="输入你的问题...">
+                <button class="ai-submit-btn" id="ai-submit-btn">发送</button>
+            </div>
+            <div class="ai-analysis-container" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(156, 39, 176, 0.2);">
+                <button class="ai-analysis-btn" id="ai-analysis-btn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #9C27B0, #7B1FA2); border: none; border-radius: 25px; color: white; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
+                    📊 生成个性化学习计划
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 渲染数据分析结果
+        function renderAnalysis() {
+            const errors = JSON.parse(localStorage.getItem('errorCollection')) || [];
+            const totalErrorsElem = document.getElementById('total-errors');
+            const categoryErrorsElem = document.getElementById('category-errors');
+            const latestErrorTimeElem = document.getElementById('latest-error-time');
+            const weakPointsElem = document.getElementById('weak-points');
+            const learningSuggestionsElem = document.getElementById('learning-suggestions');
+            const forgettingCurveAdviceElem = document.getElementById('forgetting-curve-advice');
+
+            // 错题总数
+            totalErrorsElem.textContent = `共有 ${errors.length} 道错题`;
+
+            // 各分类错题数量
+            const categoryCount = {};
+            errors.forEach(error => {
+                const category = error.category || '未分类';
+                categoryCount[category] = (categoryCount[category] || 0) + 1;
+            });
+            const categoryList = Object.entries(categoryCount).map(([category, count]) => `${category}: ${count} 道`).join(', ');
+            categoryErrorsElem.textContent = categoryList;
+
+            // 最近错题时间
+            if (errors.length > 0) {
+                const latestError = errors.reduce((prev, current) => {
+                    return new Date(prev.timestamp) > new Date(current.timestamp) ? prev : current;
+                });
+                latestErrorTimeElem.textContent = `最近错题时间: ${new Date(latestError.timestamp).toLocaleString()}`;
+            } else {
+                latestErrorTimeElem.textContent = '暂无错题记录';
+            }
+
+            // 用户薄弱点分析
+            if (Object.keys(categoryCount).length > 0) {
+                const sortedCategories = Object.entries(categoryCount).sort((a, b) => b[1] - a[1]);
+                const weakPoints = sortedCategories.map(([category, count]) => `${category}（${count} 道错题）`).join(', ');
+                weakPointsElem.textContent = `你的薄弱点主要集中在：${weakPoints}。`;
+            } else {
+                weakPointsElem.textContent = '暂无错题记录，继续保持！';
+            }
+
+            // 学习建议
+            if (Object.keys(categoryCount).length > 0) {
+                const topWeakCategory = Object.entries(categoryCount).sort((a, b) => b[1] - a[1])[0][0];
+                let suggestion = '';
+                if (topWeakCategory === 'CET-4') {
+                    suggestion = '建议你重点复习 CET-4 词汇，多做相关练习题，同时可以结合真题进行模拟训练。';
+                } else if (topWeakCategory === 'CET-6') {
+                    suggestion = '对于 CET-6 词汇，你可以增加阅读英文文章和书籍的量，提高词汇的运用能力。多做听力和写作练习，提升综合能力。';
+                } else if (topWeakCategory === '考研核心') {
+                    suggestion = '针对考研核心词汇，建议制定系统的学习计划，分阶段进行复习。可以结合考研真题和辅导资料，加深对词汇的理解和记忆。';
+                } else {
+                    suggestion = '针对错题较多的分类，你可以集中精力进行专项学习，多做相关练习题，及时总结错题原因。';
+                }
+                learningSuggestionsElem.textContent = suggestion;
+            } else {
+                learningSuggestionsElem.textContent = '继续保持当前的学习状态，不断巩固知识！';
+            }
+
+            // 遗忘曲线学习建议
+            if (errors.length > 0) {
+                const today = new Date();
+                const recentErrors = errors.filter(error => {
+                    const errorDate = new Date(error.timestamp);
+                    const diffTime = Math.abs(today - errorDate);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    return diffDays <= 7;
+                });
+
+                let advice = '';
+                if (recentErrors.length > 0) {
+                    const errorCategories = {};
+                    recentErrors.forEach(error => {
+                        const category = error.category;
+                        errorCategories[category] = (errorCategories[category] || 0) + 1;
+                    });
+                    const topCategory = Object.keys(errorCategories).reduce((a, b) => errorCategories[a] > errorCategories[b] ? a : b);
+                    advice = `根据遗忘曲线，今天你可以重点复习 ${topCategory} 类别的错题。对近期错题进行回顾和强化记忆，能有效减少遗忘。`;
+                } else {
+                    advice = '近期没有错题，你可以随机选择一个分类进行复习，巩固知识。';
+                }
+                forgettingCurveAdviceElem.textContent = advice;
+            } else {
+                forgettingCurveAdviceElem.textContent = '暂无错题记录，可先正常学习新内容，后续留意错题积累。';
+            }
+        }
+
+        // 初始化执行
+        renderAnalysis();
+
+        // 抽屉交互
+        document.getElementById('drawer-toggle').addEventListener('click', () => {
+            document.body.classList.toggle('drawer-open');
+        });
+
+        // AI交互功能
+        document.addEventListener('DOMContentLoaded', function() {
+            const aiInput = document.getElementById('ai-input');
+            const aiSubmitBtn = document.getElementById('ai-submit-btn');
+            const aiChatContainer = document.getElementById('ai-chat-container');
+            const aiAnalysisBtn = document.getElementById('ai-analysis-btn');
+            
+            // 缓存机制
+            const responseCache = new Map();
+            const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24小时缓存
+            
+            // 预加载常用问题
+            const commonQuestions = ['你好', '怎么学习英语', '单词记不住怎么办', '如何使用遗忘曲线', '我的薄弱环节在哪里'];
+            
+            // 预加载函数
+            async function preloadResponses() {
+                console.log('开始预加载常用问题...');
+                for (const question of commonQuestions) {
+                    setTimeout(async () => {
+                        try {
+                            const response = await callDoubaoAPI(question);
+                            responseCache.set(question, {
+                                response: response,
+                                timestamp: Date.now()
+                            });
+                            console.log(`预加载完成: ${question}`);
+                        } catch (error) {
+                            console.log(`预加载失败: ${question}`, error);
+                        }
+                    }, 1000 * commonQuestions.indexOf(question));
+                }
+            }
+            
+            // 启动预加载
+            preloadResponses();
+            
+            // 发送消息函数
+            async function sendMessage() {
+                const message = aiInput.value.trim();
+                if (!message) return;
+
+                // 添加用户消息到聊天容器
+                addMessage('user', message);
+                aiInput.value = '';
+
+                // 检查缓存
+                const cached = responseCache.get(message);
+                const now = Date.now();
+                
+                if (cached && (now - cached.timestamp) < CACHE_EXPIRY) {
+                    // 从缓存获取答案
+                    addMessage('ai', cached.response);
+                    return;
+                }
+
+                // 显示加载状态
+                aiSubmitBtn.disabled = true;
+                aiSubmitBtn.innerHTML = '<div class="loading-indicator"></div>';
+
+                try {
+                    // 调用豆包API
+                    const response = await callDoubaoAPI(message);
+                    
+                    // 缓存结果
+                    responseCache.set(message, {
+                        response: response,
+                        timestamp: Date.now()
+                    });
+                    
+                    // 添加AI回复到聊天容器
+                    addMessage('ai', response);
+                } catch (error) {
+                    console.error('API调用失败:', error);
+                    addMessage('ai', '抱歉，暂时无法处理你的请求，请稍后再试。');
+                } finally {
+                    // 恢复按钮状态
+                    aiSubmitBtn.disabled = false;
+                    aiSubmitBtn.innerHTML = '发送';
+                }
+            }
+
+            // 添加消息到聊天容器
+            function addMessage(type, content) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = type === 'user' ? 'user-message' : 'ai-message';
+                messageDiv.textContent = content;
+                aiChatContainer.appendChild(messageDiv);
+                // 滚动到底部
+                aiChatContainer.scrollTop = aiChatContainer.scrollHeight;
+            }
+
+            // 调用豆包API
+            async function callDoubaoAPI(message) {
+                // 火山引擎API配置
+                const apiKey = '7ec1fc34-50ae-42bf-84b1-6c7eb9c2d23f';
+                
+                // 正确的火山引擎豆包API端点
+                const apiUrl = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
+
+                // 构建请求数据
+                const requestData = {
+                    model: 'doubao-seed-2-0-mini-260215',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: '你是一个英语学习专家，专注于数据分析和遗忘曲线学习方法。请根据用户的学习数据，提供个性化的学习建议和遗忘曲线分析。回答要专业、具体、实用。'
+                        },
+                        {
+                            role: 'user',
+                            content: message
+                        }
+                    ],
+                    temperature: 0.3,
+                    max_tokens: 200,
+                    top_p: 0.7,
+                    stream: false
+                };
+
+                try {
+                    // 发送请求
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(`API请求失败: ${response.status} - ${errorData.error?.message || '未知错误'}`);
+                    }
+
+                    const data = await response.json();
+                    return data.choices[0].message.content;
+                } catch (error) {
+                    console.error('API调用错误:', error);
+                    // 提供友好的错误提示
+                    if (error.message.includes('401')) {
+                        return 'API密钥无效，请检查你的API密钥配置。';
+                    } else if (error.message.includes('404')) {
+                        return 'API端点错误，请检查API地址配置。';
+                    } else if (error.message.includes('网络')) {
+                        return '网络连接失败，请检查你的网络连接。';
+                    } else if (error.message.includes('CORS')) {
+                        return '跨域请求错误，请在服务器环境中运行或配置CORS。';
+                    } else {
+                        return `抱歉，暂时无法处理你的请求。错误信息：${error.message}`;
+                    }
+                }
+            }
+
+            // 生成个性化学习计划
+            aiAnalysisBtn.addEventListener('click', async function() {
+                const errors = JSON.parse(localStorage.getItem('errorCollection')) || [];
+                
+                if (errors.length === 0) {
+                    addMessage('ai', '你目前还没有错题记录，快去练习吧！当你有错题后，我可以帮你生成个性化学习计划。');
+                    return;
+                }
+                
+                // 显示分析中状态
+                aiAnalysisBtn.disabled = true;
+                aiAnalysisBtn.innerHTML = '<div class="loading-indicator" style="width: 16px; height: 16px; border-width: 2px;"></div> 分析中...';
+                
+                // 统计错题数据
+                const analysisData = analyzeErrorData(errors);
+                
+                // 构建分析提示词
+                const analysisPrompt = buildAnalysisPrompt(analysisData);
+                
+                try {
+                    // 添加用户消息
+                    addMessage('user', '请帮我生成个性化学习计划');
+                    
+                    // 调用AI分析
+                    const response = await callDoubaoAPI(analysisPrompt);
+                    addMessage('ai', response);
+                } catch (error) {
+                    console.error('分析失败:', error);
+                    addMessage('ai', '分析过程中出现错误，请稍后再试。');
+                } finally {
+                    // 恢复按钮状态
+                    aiAnalysisBtn.disabled = false;
+                    aiAnalysisBtn.innerHTML = '📊 生成个性化学习计划';
+                }
+            });
+            
+            // 统计错题数据
+            function analyzeErrorData(errors) {
+                const categoryCount = {};
+                const wordList = [];
+                const timeDistribution = {};
+                
+                errors.forEach(error => {
+                    // 统计分类
+                    const category = error.category || '未分类';
+                    categoryCount[category] = (categoryCount[category] || 0) + 1;
+                    
+                    // 收集单词
+                    wordList.push({
+                        word: error.word,
+                        definition: error.definition || '',
+                        category: category
+                    });
+                    
+                    // 时间分布（按天统计）
+                    const date = new Date(error.timestamp).toLocaleDateString();
+                    timeDistribution[date] = (timeDistribution[date] || 0) + 1;
+                });
+                
+                return {
+                    totalErrors: errors.length,
+                    categoryCount: categoryCount,
+                    wordList: wordList,
+                    timeDistribution: timeDistribution
+                };
+            }
+            
+            // 构建分析提示词
+            function buildAnalysisPrompt(data) {
+                let prompt = '请作为英语学习专家，根据以下错题数据，分析用户的学习情况并生成个性化的遗忘曲线学习计划。\n\n';
+                prompt += `错题总数：${data.totalErrors} 个\n\n`;
+                
+                // 分类统计
+                prompt += '【分类统计】\n';
+                for (const [category, count] of Object.entries(data.categoryCount)) {
+                    const percentage = ((count / data.totalErrors) * 100).toFixed(1);
+                    prompt += `- ${category}: ${count} 个 (${percentage}%)\n`;
+                }
+                prompt += '\n';
+                
+                // 错题单词列表
+                prompt += '【错题单词】\n';
+                data.wordList.forEach((item, index) => {
+                    prompt += `${index + 1}. ${item.word}`;
+                    if (item.definition) {
+                        prompt += ` - ${item.definition}`;
+                    }
+                    prompt += ` [${item.category}]\n`;
+                });
+                prompt += '\n';
+                
+                // 时间分布
+                prompt += '【时间分布】\n';
+                for (const [date, count] of Object.entries(data.timeDistribution)) {
+                    prompt += `- ${date}: ${count} 个\n`;
+                }
+                prompt += '\n';
+                
+                // 要求
+                prompt += '请提供以下分析：\n';
+                prompt += '1. 学习情况分析：基于错题数据，分析用户的学习状态和薄弱环节\n';
+                prompt += '2. 遗忘曲线学习计划：根据艾宾浩斯遗忘曲线，为用户制定个性化的复习计划\n';
+                prompt += '3. 具体建议：提供3-5条针对性的学习建议\n';
+                prompt += '4. 鼓励话语：给用户一些学习鼓励\n\n';
+                prompt += '请用专业、具体、实用的语气回答，格式清晰易读。';
+                
+                return prompt;
+            }
+
+            // 事件监听
+            aiSubmitBtn.addEventListener('click', sendMessage);
+            aiInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        });
+    </script>
+</body>
+</html>    

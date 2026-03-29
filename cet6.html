@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>六级词汇学习站</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: url(./img/bg.jpg) no-repeat center/cover;
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            padding-top: 80px;
+        }
+
+        /* 抽屉导航样式 */
+        #drawer-toggle {
+            position: fixed;
+            left: 30px;
+            top: 30px;
+            z-index: 1000;
+            width: 50px;
+            height: 50px;
+            border: none;
+            background: rgba(76, 175, 80, 0.9); /* 绿色主题 */
+            border-radius: 15px;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        #drawer-menu {
+            position: fixed;
+            left: -300px;
+            top: 0;
+            height: 100vh;
+            width: 280px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            padding: 30px 20px;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .drawer-open #drawer-menu {
+            left: 0;
+        }
+
+        .menu-item {
+            padding: 18px;
+            margin: 12px 0;
+            background: rgba(76, 175, 80, 0.1); /* 绿色主题 */
+            border-radius: 12px;
+            color: #4CAF50; /* 绿色主题 */
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .menu-item:hover {
+            background: rgba(76, 175, 80, 0.2); /* 绿色主题 */
+            transform: translateX(10px);
+        }
+
+        /* 搜索框样式 */
+        #search-bar {
+            width: 60%;
+            height: 60px;
+            margin: 0 auto 40px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 35px;
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            box-shadow: 0 8px 32px rgba(76, 175, 80, 0.1); /* 绿色主题 */
+            transition: all 0.3s ease;
+        }
+
+        #search-bar.focused {
+            width: 70%;
+            background: rgba(255, 255, 255, 1);
+            box-shadow: 0 8px 32px rgba(76, 175, 80, 0.3);
+        }
+
+        #search-input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: 20px;
+            color: #4CAF50; /* 绿色主题 */
+            padding-left: 15px;
+        }
+
+        #search-input::placeholder {
+            color: #A5D6A7; /* 浅绿色 */
+        }
+
+        /* 卡片容器 */
+        #card-container {
+            overflow: hidden;
+            position: relative;
+            width: 70%;
+            height: 600px;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+        .word-cards-wrapper {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s ease-in-out;
+        }
+
+        /* 单词卡片 */
+        .word-card {
+            margin-right: 2%;
+            box-sizing: border-box;
+            min-width: 100%;
+            flex: 0 0 100%;
+            height: 100%;
+            position: relative;
+            opacity: 1 !important;
+            transform: none !important;
+            margin-right: 2%;
+        }
+
+        /* 卡片内容样式 */
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .word {
+            font-size: 3.8rem;
+            color: #4CAF50; /* 绿色主题 */
+            text-shadow: 2px 2px 4px rgba(76, 175, 80, 0.2); /* 绿色主题 */
+        }
+
+        .phonetic {
+            font-size: 1.8rem;
+            color: #81C784; /* 浅绿色 */
+        }
+
+        .definition {
+            font-size: 1.8rem;
+            line-height: 1.6;
+            color: #666;
+            flex-grow: 1;
+            padding: 30px 0;
+        }
+
+        .example {
+            font-size: 1.4rem;
+            color: #4CAF50; /* 绿色主题 */
+            padding: 20px;
+            background: rgba(76, 175, 80, 0.05); /* 绿色主题 */
+            border-radius: 15px;
+            border-left: 4px solid #4CAF50; /* 绿色主题 */
+        }
+
+        /* 导航按钮容器 */
+        #nav-buttons {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 100;
+        }
+
+        .nav-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            background: rgba(76, 175, 80, 0.9); /* 绿色主题 */
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3); /* 绿色主题 */
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover {
+            background: #45a049; /* 深绿色 */
+            transform: scale(1.1);
+        }
+
+        /* 励志话语容器 */
+        #motivational-quote {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.4rem;
+            color: #4CAF50;
+            text-align: center;
+            max-width: 70%;
+            margin: 0 auto;
+        }
+
+        /* 错题集按钮美化 */
+        .error-btn {
+            align-self: flex-end;
+            padding: 12px 25px;
+            background: linear-gradient(to right, #4CAF50, #66BB6A);
+            border: 2px solid #4CAF50;
+            border-radius: 25px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
+            margin: 20px 0 30px;
+        }
+        .error-btn:hover {
+            background: linear-gradient(to right, #45a049, #66BB6A);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        /* 加载提示 */
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* ------------- 新增：认识/不认识按钮 ------------- */
+        .study-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .study-btn {
+            padding: 14px 32px;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .study-know {
+            background: #4cd137;
+            color: white;
+        }
+        .study-unknown {
+            background: #4CAF50;
+            color: white;
+        }
+        .study-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* ------------- 新增：进度条样式 ------------- */
+        #progress-container {
+            width: 70%;
+            margin: 0 auto 30px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.1);
+        }
+
+        .progress-item {
+            margin-bottom: 20px;
+        }
+
+        .progress-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: #4CAF50;
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(to right, #4CAF50, #66BB6A);
+            border-radius: 6px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .daily-settings {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .daily-settings input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #4CAF50;
+        }
+
+        .daily-settings button {
+            padding: 8px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .daily-settings button:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        #daily-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        #daily-status.completed {
+            background: #4cd137;
+            color: white;
+        }
+
+        #daily-status.incomplete {
+            background: #4CAF50;
+            color: white;
+        }
+
+        /* ------------- 新增：游戏按钮（风格统一） ------------- */
+        #game-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 12px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 99;
+        }
+        #game-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* ------------- 游戏弹窗 ------------- */
+        .game-modal {
+            position: fixed;
+            top:0; left:0; width:100%; height:100%;
+            background: rgba(255,255,255,0.98);
+            z-index: 9999;
+            display: none;
+            padding: 40px 20px;
+        }
+        .close-game {
+            position: absolute;
+            top: 30px;
+            right: 40px;
+            font-size: 28px;
+            color: #4CAF50;
+            cursor: pointer;
+        }
+        .game-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .pair-game {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+        }
+        .game-word, .game-mean {
+            width: 45%;
+        }
+        .game-item {
+            padding: 16px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 10px;
+            margin: 12px 0;
+            text-align: center;
+        }
+
+        /* ------------- 拼写游戏样式 ------------- */
+        .spell-game {
+            margin-top: 40px;
+            text-align: center;
+        }
+        .spell-chinese {
+            font-size: 24px;
+            color: #4CAF50;
+            margin-bottom: 30px;
+        }
+        .spell-input {
+            font-size: 28px;
+            padding: 15px;
+            border: 3px solid #4CAF50;
+            border-radius: 10px;
+            width: 300px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .spell-buttons {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            max-width: 500px;
+            margin: 0 auto 30px;
+        }
+        .spell-btn {
+            padding: 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .spell-btn:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+        .spell-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .spell-result {
+            font-size: 20px;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .spell-result.correct {
+            color: #4cd137;
+        }
+        .spell-result.incorrect {
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <!-- 修复后的抽屉导航 -->
+    <button id="drawer-toggle">☰</button>
+    <div id="drawer-menu">
+        <div class="menu-item" onclick="goToErrorCollection()">📚 错题集</div>
+        <div class="menu-item" onclick="goToDataAnalysis()">📊 数据分析</div>
+        <div class="menu-item" onclick="location.href='学习笔记.html'">📒 学习笔记</div>
+        <div class="menu-item" onclick="goToMainPage()">⚙️ 返回</div>
+    </div>
+
+    <!-- 进度条容器 -->
+    <div id="progress-container">
+        <div class="progress-item">
+            <div class="progress-label">
+                <span>六级总单词数</span>
+                <span id="total-progress-text">0/0</span>
+            </div>
+            <div class="progress-bar">
+                <div id="total-progress-bar" class="progress-fill"></div>
+            </div>
+        </div>
+        <div class="progress-item">
+            <div class="progress-label">
+                <span>每日学习目标</span>
+                <span id="daily-progress-text">0/0</span>
+                <span id="daily-status">未完成</span>
+            </div>
+            <div class="progress-bar">
+                <div id="daily-progress-bar" class="progress-fill"></div>
+            </div>
+            <div class="daily-settings">
+                <input type="number" id="daily-goal-input" min="1" max="100" placeholder="设置每日目标">
+                <button onclick="setDailyGoal()">设置</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 搜索框 -->
+    <div id="search-bar">
+        <input type="text" id="search-input" placeholder="输入要查询的单词...">
+        <span style="color: #4CAF50; font-size: 24px;">🔍</span>
+    </div>
+
+    <!-- 卡片容器 -->
+    <div id="card-container">
+        <!-- 导航按钮 -->
+        <div id="nav-buttons">
+            <button class="nav-btn" id="prev-btn">❮</button>
+            <button class="nav-btn" id="next-btn">❯</button>
+        </div>
+        <div class="word-cards-wrapper"></div>
+    </div>
+
+    <!-- 励志话语 -->
+    <div id="motivational-quote"></div>
+
+    <!-- 加载提示 -->
+    <div id="loading">
+        数据加载中...
+    </div>
+
+    <!-- 游戏按钮 -->
+    <button id="game-button" disabled>🎮 单词配对游戏</button>
+    <button id="spell-button" disabled style="position: fixed; bottom: 30px; left: 30px; padding: 12px 20px; background: #4CAF50; color: white; border: none; border-radius: 20px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 99;">✏️ 单词拼写游戏</button>
+
+    <script>
+        // 在 initApp() 之前或之后添加：
+function goToErrorCollection() {
+    location.href = "错题集.html";
+}
+
+function goToDataAnalysis() {
+    location.href = "数据分析.html";
+}
+
+function goToMainPage() {
+    location.href = "拾贝集.html";  // 或其他主页路径
+}
+        const CONFIG = {
+            dataURL: '999/CET6_1.json',  // 修改为新的 JSON 文件路径
+            itemsPerPage: 1
+        };
+
+        // 状态管理
+        let appState = {
+            allWords: [],
+            filteredWords: [],
+            currentIndex: 0
+        };
+        let knownWords = JSON.parse(localStorage.getItem('knownWords_cet6') || '[]');
+        let dailyGoal = parseInt(localStorage.getItem('dailyGoal_cet6')) || 10;
+        let dailyLearned = parseInt(localStorage.getItem('dailyLearned_cet6')) || 0;
+        let lastStudyDate = localStorage.getItem('lastStudyDate_cet6') || '';
+        let today = new Date().toDateString();
+        
+        // 检查是否是新的一天
+        if (lastStudyDate !== today) {
+            dailyLearned = 0;
+            localStorage.setItem('dailyLearned_cet6', '0');
+            localStorage.setItem('lastStudyDate_cet6', today);
+        }
+
+        // 核心功能
+        async function initApp() {
+            try {
+                // 加载数据
+                const response = await fetch(CONFIG.dataURL);
+                if (!response.ok) throw new Error(`HTTP错误 ${response.status}`);
+                appState.allWords = await response.json();
+
+                // 初始化界面
+                appState.filteredWords = [...appState.allWords];
+                renderCards();
+                setupEventListeners();
+                document.getElementById('loading').style.display = 'none';
+                displayMotivationalQuote();
+                updateGameButton();
+                updateProgressBars();
+                document.getElementById('daily-goal-input').value = dailyGoal;
+
+            } catch (error) {
+                document.getElementById('loading').innerHTML = 
+                    `数据加载失败: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        // 更新进度条
+        function updateProgressBars() {
+            // 更新总单词进度条
+            const totalWords = appState.allWords.length;
+            const learnedWords = knownWords.length;
+            const totalProgress = (learnedWords / totalWords) * 100;
+            
+            document.getElementById('total-progress-text').textContent = `${learnedWords}/${totalWords}`;
+            document.getElementById('total-progress-bar').style.width = `${totalProgress}%`;
+            
+            // 更新每日学习进度条
+            const dailyProgress = (dailyLearned / dailyGoal) * 100;
+            document.getElementById('daily-progress-text').textContent = `${dailyLearned}/${dailyGoal}`;
+            document.getElementById('daily-progress-bar').style.width = `${Math.min(dailyProgress, 100)}%`;
+            
+            // 更新每日状态
+            const dailyStatus = document.getElementById('daily-status');
+            if (dailyLearned >= dailyGoal) {
+                dailyStatus.textContent = '已完成';
+                dailyStatus.className = 'completed';
+            } else {
+                dailyStatus.textContent = '未完成';
+                dailyStatus.className = 'incomplete';
+            }
+        }
+
+        // 设置每日目标
+        function setDailyGoal() {
+            const input = document.getElementById('daily-goal-input');
+            const goal = parseInt(input.value);
+            
+            if (goal && goal > 0) {
+                dailyGoal = goal;
+                localStorage.setItem('dailyGoal_cet6', goal);
+                updateProgressBars();
+                alert(`每日学习目标已设置为${goal}个单词！`);
+            } else {
+                alert('请输入有效的每日目标！');
+            }
+        }
+
+        // 渲染卡片
+        function renderCards() {
+            const wrapper = document.querySelector('.word-cards-wrapper');
+            wrapper.innerHTML = appState.filteredWords.map((word, index) => {
+                const translations = word.translations.map(tran => `${tran.translation} (${tran.type})`).join(', ');
+                return `
+                    <div class="word-card" data-index="${index}">
+                        <div class="card-header">
+                            <h1 class="word">${word.word}</h1>
+                            <div class="phonetic">${word.phonetic_symbol || ''}</div>
+                        </div>
+                        <div class="definition">${translations}</div>
+                        <div class="study-buttons">
+                            <button class="study-btn study-know" onclick="markKnow(${index})">✅ 认识</button>
+                            <button class="study-btn study-unknown" onclick="markUnknown(${index})">❌ 不认识</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            updateCardPosition();
+        }
+
+        // 搜索功能
+        function handleSearch() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            appState.filteredWords = appState.allWords.filter(word => 
+                word.word.toLowerCase().includes(query) ||
+                word.translations.some(tran => tran.translation.toLowerCase().includes(query))
+            );
+            appState.currentIndex = 0;
+            renderCards();
+
+            // 彩蛋搜索词
+            if (query === '彩蛋') {
+                alert('恭喜你发现了彩蛋！继续加油学习哦！');
+            }
+        }
+
+        // 卡片导航
+        // 修改卡片位置更新函数
+        function updateCardPosition() {
+            const wrapper = document.querySelector('.word-cards-wrapper');
+            const cardWidth = document.querySelector('.word-card').offsetWidth;
+            const offset = -appState.currentIndex * (cardWidth + cardWidth * 0.02); // 计算实际偏移量
+            wrapper.style.transform = `translateX(${offset}px)`;
+        }
+
+        // 事件监听
+        function setupEventListeners() {
+            // 导航按钮
+            document.getElementById('next-btn').addEventListener('click', () => {
+                appState.currentIndex = (appState.currentIndex + 1) % appState.filteredWords.length;
+                updateCardPosition();
+            });
+
+            document.getElementById('prev-btn').addEventListener('click', () => {
+                appState.currentIndex = (appState.currentIndex - 1 + appState.filteredWords.length) % appState.filteredWords.length;
+                updateCardPosition();
+            });
+
+            // 搜索框功能
+            document.getElementById('search-input').addEventListener('input', handleSearch);
+
+            // 抽屉菜单交互
+            document.getElementById('drawer-toggle').addEventListener('click', () => {
+                document.body.classList.toggle('drawer-open');
+            });
+
+            // 搜索框聚焦动画
+            const searchBar = document.getElementById('search-bar');
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('focus', () => {
+                searchBar.classList.add('focused');
+            });
+            searchInput.addEventListener('blur', () => {
+                searchBar.classList.remove('focused');
+            });
+        }
+
+        // 标记认识
+        function markKnow(idx) {
+            const word = appState.filteredWords[idx];
+            if (!knownWords.some(x => x.word === word.word)) {
+                knownWords.push(word);
+                localStorage.setItem('knownWords_cet6', JSON.stringify(knownWords));
+                
+                // 更新每日学习进度
+                dailyLearned++;
+                localStorage.setItem('dailyLearned_cet6', dailyLearned);
+            }
+            nextCard();
+            updateGameButton();
+            updateProgressBars();
+        }
+
+        // 标记不认识（自动进错题集）
+        function markUnknown(idx) {
+            const word = appState.filteredWords[idx];
+            let err = JSON.parse(localStorage.getItem('errorCollection') || '[]');
+            if (!err.some(x => x.word === word.word)) {
+                const translations = word.translations.map(tran => `${tran.translation} (${tran.type})`).join(', ');
+                err.push({ word: word.word, definition: translations, category: 'CET-6' });
+                localStorage.setItem('errorCollection', JSON.stringify(err));
+            }
+            alert(`已将「${word.word}」加入错题集`);
+            nextCard();
+        }
+
+        // 下一张
+        function nextCard() {
+            appState.currentIndex = (appState.currentIndex + 1) % appState.filteredWords.length;
+            updateCardPosition();
+        }
+
+        // 更新游戏按钮（满10个解锁）
+        function updateGameButton() {
+            const btn = document.getElementById('game-button');
+            btn.disabled = knownWords.length < 10;
+            btn.innerText = `🎮 配对游戏 (已学会 ${knownWords.length})`;
+            
+            const spellBtn = document.getElementById('spell-button');
+            spellBtn.disabled = knownWords.length < 15;
+            spellBtn.innerText = `✏️ 拼写游戏 (已学会 ${knownWords.length})`;
+        }
+
+        // 打开游戏
+        document.getElementById('game-button').onclick = function() {
+            // 跳转到新的六级配对游戏页面
+            location.href = '六级配对游戏.html';
+        }
+
+        // 打开拼写游戏
+        document.getElementById('spell-button').onclick = function() {
+            // 跳转到新的六级拼写游戏页面
+            location.href = '六级拼写游戏.html';
+        }
+
+        // 励志
+        function displayMotivationalQuote() {
+            const q = ["学习是成长的阶梯，每一步都值得骄傲！","今天的学习是明天的基石，坚持就是胜利！","单词积累是语言学习的关键，每天进步一点点！","努力不会白费，你的坚持终将开花结果！","相信自己，你比想象中更强大！","学习是一种享受，知识是无尽的宝藏！","今天的学习，是未来的你感谢今天的努力！","坚持每天学习，成功就在不远处！","每一次努力都是在为未来的自己铺路！","学习是通往成功的桥梁，勇敢地迈出每一步！"];
+            document.getElementById('motivational-quote').innerText = q[Math.floor(Math.random()*q.length)];
+        }
+
+        initApp();
+    </script>
+</body>
+</html>

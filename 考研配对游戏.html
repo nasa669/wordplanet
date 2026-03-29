@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考研单词配对游戏</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: url(./img/bg.jpg) no-repeat center/cover;
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            padding-top: 80px;
+        }
+        /* 抽屉导航样式 */
+        #drawer-toggle {
+            position: fixed;
+            left: 30px;
+            top: 30px;
+            z-index: 1000;
+            width: 50px;
+            height: 50px;
+            border: none;
+            background: rgba(33, 150, 243, 0.9);
+            border-radius: 15px;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        #drawer-menu {
+            position: fixed;
+            left: -300px;
+            top: 0;
+            height: 100vh;
+            width: 280px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(12px);
+            padding: 30px 20px;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .drawer-open #drawer-menu {
+            left: 0;
+        }
+
+        .menu-item {
+            padding: 18px;
+            margin: 12px 0;
+            background: rgba(33, 150, 243, 0.1);
+            border-radius: 12px;
+            color: #2196F3;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .menu-item:hover {
+            background: rgba(33, 150, 243, 0.2);
+            transform: translateX(10px);
+        }
+
+        /* 游戏容器 */
+        #game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* 游戏标题 */
+        h1 {
+            text-align: center;
+            color: #2196F3;
+            margin-bottom: 40px;
+            font-size: 2.5rem;
+        }
+
+        /* 配对游戏区域 */
+        .pair-game {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(33, 150, 243, 0.1);
+        }
+
+        /* 单词和释义区域 */
+        .game-word, .game-mean {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* 游戏项 */
+        .game-item {
+            padding: 20px;
+            background: #2196F3;
+            color: white;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 18px;
+            font-weight: bold;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .game-item:hover {
+            background: #1976D2;
+            transform: scale(1.05);
+        }
+
+        .game-item.selected {
+            background: #4CAF50;
+        }
+
+        /* 连接线 */
+        .connection-line {
+            position: absolute;
+            height: 3px;
+            background: #4CAF50;
+            z-index: 100;
+        }
+
+        /* 关闭按钮 */
+        .close-game {
+            position: fixed;
+            top: 30px;
+            right: 40px;
+            font-size: 28px;
+            color: #2196F3;
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        /* 信息提示 */
+        #game-info {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #2196F3;
+            font-size: 1.2rem;
+        }
+
+        /* 游戏画布 */
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <button id="drawer-toggle">☰</button>
+    <div id="drawer-menu">
+        <div class="menu-item" onclick="goToErrorCollection()">📚 错题集</div>
+        <div class="menu-item" onclick="goToDataAnalysis()">📊 数据分析</div>
+        <div class="menu-item" onclick="location.href='学习笔记.html'">📒 学习笔记</div>
+        <div class="menu-item" onclick="goToMainPage()">⚙️ 返回</div>
+    </div>
+
+    <div id="game-container">
+        <h1>🎮 考研单词配对游戏</h1>
+        <div id="game-info">正在加载单词...</div>
+        <div class="pair-game">
+            <div class="game-word" id="wordList"></div>
+            <div class="game-mean" id="meanList"></div>
+        </div>
+    </div>
+
+    <div class="close-game" onclick="closeGame()">✕</div>
+    <canvas id="game-canvas"></canvas>
+
+    <script>
+        const CONFIG = { dataURL: '999/5-考研-顺序.json' };
+        let knownWords = JSON.parse(localStorage.getItem('knownWords_ky') || '[]');
+        let gameWords = [];
+        let selectedItems = [];
+        let matchedPairs = [];
+        let canvas = document.getElementById('game-canvas');
+        let ctx = canvas.getContext('2d');
+
+        // 初始化画布
+        function initCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        // 初始化游戏
+        async function initGame() {
+            try {
+                knownWords = JSON.parse(localStorage.getItem('knownWords_ky') || '[]');
+                
+                if (knownWords.length < 2) {
+                    document.getElementById('game-info').innerText = '需要至少学习2个单词才能开始游戏！';
+                    return;
+                }
+
+                // 每次使用10对单词
+                const maxPairs = 10;
+                if (knownWords.length > maxPairs) {
+                    // 随机抽取10个单词
+                    gameWords = [...knownWords].sort(() => Math.random() - 0.5).slice(0, maxPairs);
+                } else {
+                    gameWords = [...knownWords];
+                }
+
+                renderGame();
+                initCanvas();
+                document.getElementById('game-info').innerText = `当前配对：${matchedPairs.length}/${gameWords.length}`;
+            } catch (e) {
+                document.getElementById('game-info').innerText = '加载失败';
+            }
+        }
+
+        // 渲染游戏
+        function renderGame() {
+            const wordList = document.getElementById('wordList');
+            const meanList = document.getElementById('meanList');
+            
+            wordList.innerHTML = gameWords.map((word, index) => `
+                <div class="game-item" data-type="word" data-index="${index}" onclick="selectItem('word', ${index})">
+                    ${word.word}
+                </div>
+            `).join('');
+            
+            // 打乱释义顺序
+            const shuffledWords = [...gameWords].sort(() => Math.random() - 0.5);
+            meanList.innerHTML = shuffledWords.map((word, index) => {
+                const translations = word.translations.map(tran => `${tran.translation} (${tran.type})`).join(', ');
+                return `
+                    <div class="game-item" data-type="mean" data-index="${gameWords.findIndex(w => w.word === word.word)}" onclick="selectItem('mean', ${gameWords.findIndex(w => w.word === word.word)})">
+                        ${translations}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 选择项目
+        function selectItem(type, index) {
+            // 如果已经选了两个，重置选择
+            if (selectedItems.length >= 2) {
+                resetSelection();
+            }
+
+            // 选择当前项目
+            const gameItem = document.querySelector(`.game-item[data-type="${type}"][data-index="${index}"]`);
+            if (gameItem) {
+                gameItem.style.background = '#4CAF50';
+                selectedItems.push({ type, index });
+            }
+
+            // 如果选了两个，检查是否匹配
+            if (selectedItems.length === 2) {
+                checkMatch();
+            }
+        }
+
+        // 检查匹配
+        function checkMatch() {
+            const [item1, item2] = selectedItems;
+            
+            if (item1.index === item2.index) {
+                // 匹配成功
+                matchedPairs.push(item1.index);
+                drawConnection();
+                document.getElementById('game-info').innerText = `当前配对：${matchedPairs.length}/${gameWords.length}`;
+                
+                // 禁用已匹配的项目
+                document.querySelectorAll(`.game-item[data-index="${item1.index}"]`).forEach(item => {
+                    item.style.background = '#4CAF50';
+                    item.style.cursor = 'default';
+                    item.onclick = null;
+                });
+                
+                selectedItems = [];
+            } else {
+                // 匹配失败
+                setTimeout(() => {
+                    alert('匹配错误！请重新选择');
+                    resetSelection();
+                }, 500);
+            }
+        }
+
+        // 绘制连接线
+        function drawConnection() {
+            const [item1, item2] = selectedItems;
+            const wordItem = document.querySelector(`.game-item[data-type="word"][data-index="${item1.index}"]`);
+            const meanItem = document.querySelector(`.game-item[data-type="mean"][data-index="${item2.index}"]`);
+            
+            if (wordItem && meanItem) {
+                const wordRect = wordItem.getBoundingClientRect();
+                const meanRect = meanItem.getBoundingClientRect();
+                
+                const startX = wordRect.right;
+                const startY = wordRect.top + wordRect.height / 2;
+                const endX = meanRect.left;
+                const endY = meanRect.top + meanRect.height / 2;
+                
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+                ctx.strokeStyle = '#4CAF50';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+        }
+
+        // 重绘已匹配的连线
+        function redrawMatchedPairs() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            matchedPairs.forEach(index => {
+                const wordItem = document.querySelector(`.game-item[data-type="word"][data-index="${index}"]`);
+                const meanItem = document.querySelector(`.game-item[data-type="mean"][data-index="${index}"]`);
+                
+                if (wordItem && meanItem) {
+                    const wordRect = wordItem.getBoundingClientRect();
+                    const meanRect = meanItem.getBoundingClientRect();
+                    
+                    const startX = wordRect.right;
+                    const startY = wordRect.top + wordRect.height / 2;
+                    const endX = meanRect.left;
+                    const endY = meanRect.top + meanRect.height / 2;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                    ctx.strokeStyle = '#4CAF50';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+            });
+        }
+
+        // 重置选择
+        function resetSelection() {
+            selectedItems.forEach(item => {
+                const gameItem = document.querySelector(`.game-item[data-type="${item.type}"][data-index="${item.index}"]`);
+                if (gameItem) {
+                    gameItem.style.background = '#2196F3';
+                }
+            });
+            selectedItems = [];
+            // 只重置当前选择，不清除已匹配的连线
+            redrawMatchedPairs();
+        }
+
+        // 关闭游戏
+        function closeGame() {
+            // 清除匹配状态，下次打开游戏时重新开始
+            matchedPairs = [];
+            // 返回主页面
+            location.href = '考研单词.html';
+        }
+
+        // 导航
+        function goToErrorCollection(){location.href="错题集.html"}
+        function goToDataAnalysis(){location.href="数据分析.html"}
+        function goToMainPage(){location.href="考研单词.html"}
+
+        // 事件
+        function setupEventListeners() {
+            document.getElementById('drawer-toggle').onclick = () => {
+                document.body.classList.toggle('drawer-open');
+            };
+            
+            window.onresize = initCanvas;
+        }
+
+        // 初始化
+        initGame();
+        setupEventListeners();
+    </script>
+</body>
+</html>
